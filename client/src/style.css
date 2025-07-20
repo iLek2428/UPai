@@ -379,6 +379,27 @@ html {
   src: url('$fonts/roboto-mono-latin-400-italic.woff2') format('woff2');
 }
 
+* {
+  font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+body {
+  font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+input, textarea, select, button {
+  font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+/* Tailwind Override */
+.font-sans {
+  font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
 /*
 
 The default ChatGPT fonts, according to OpenAI's brand guidelines, are proprietary and require appropriate font license according to your use case.
@@ -2795,4 +2816,532 @@ html {
 
 .custom-style-2 {
   padding: 12px;
+}
+
+/* Apply UPai theme ONLY to login page */
+body.upai-login-active {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #1a1a2e 100%) !important;
+    min-height: 100vh !important;
+    position: relative !important;
+    overflow-x: hidden !important;
+    font-family: 'Noto Sans Thai Looped', 'Noto Sans Thai', 'Inter', sans-serif !important;
+}
+
+/* Override only white backgrounds on login page */
+body.upai-login-active div[class*="bg-white"],
+body.upai-login-active div[class*="bg-gray"],
+body.upai-login-active .bg-white,
+body.upai-login-active .bg-gray-50,
+body.upai-login-active .bg-gray-100 {
+    background: transparent !important;
+}
+
+/* Stars Animation - Only on login page */
+body.upai-login-active .upai-stars {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    z-index: 1 !important;
+}
+
+.upai-star {
+    position: absolute;
+    border-radius: 50%;
+    animation: upai-twinkle 3s infinite;
+}
+
+.upai-star.small {
+    width: 1px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.8);
+    animation-duration: 2s;
+}
+
+.upai-star.medium {
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.9);
+    animation-duration: 3s;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.upai-star.large {
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 255, 255, 1);
+    animation-duration: 4s;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.upai-star.bright {
+    width: 4px;
+    height: 4px;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffd93d);
+    animation-duration: 5s;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+}
+
+@keyframes upai-twinkle {
+    0%, 100% { 
+        opacity: 0.2; 
+        transform: scale(0.8);
+    }
+    25% { 
+        opacity: 0.8; 
+        transform: scale(1.2);
+    }
+    50% { 
+        opacity: 1; 
+        transform: scale(1.5);
+    }
+    75% { 
+        opacity: 0.6; 
+        transform: scale(1.1);
+    }
+}
+
+/* Floating Elements - Only on login page */
+body.upai-login-active .upai-floating-elements {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    z-index: 2 !important;
+}
+
+.upai-floating-element {
+    position: absolute;
+    opacity: 0.7;
+    animation: upai-float 15s infinite ease-in-out;
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.2));
+}
+
+.upai-rocket {
+    font-size: 300px;
+    top: 8%;
+    left: 8%;
+    animation-delay: 0s;
+}
+
+.upai-brain {
+    font-size: 200px;
+    top: 12%;
+    right: 10%;
+    animation-delay: 4s;
+}
+
+.upai-robot {
+    font-size: 250px;
+    bottom: 15%;
+    right: 12%;
+    animation-delay: 2s;
+}
+
+.upai-satellite {
+    font-size: 160px;
+    top: 50%;
+    left: 5%;
+    animation-delay: 6s;
+}
+
+@keyframes upai-float {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg) scale(1); 
+        opacity: 0.7;
+    }
+    25% { 
+        transform: translateY(-12px) rotate(2deg) scale(1.02); 
+        opacity: 0.8;
+    }
+    50% { 
+        transform: translateY(-8px) rotate(-1deg) scale(1.03); 
+        opacity: 0.85;
+    }
+    75% { 
+        transform: translateY(-10px) rotate(1deg) scale(1.01); 
+        opacity: 0.75;
+    }
+}
+
+/* ========== LOGIN CONTAINER WITH FRAME ========== */
+
+/* UPai Login Container - Glass morphism frame */
+body.upai-login-active .upai-login-frame {
+    position: relative;
+    z-index: 10;
+    background: rgba(10, 10, 10, 0.85) !important;
+    backdrop-filter: blur(25px) !important;
+    border: 2px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 32px !important;
+    padding: 48px !important;
+    margin: 20px auto !important;
+    max-width: 450px !important;
+    width: 90% !important;
+    box-shadow: 
+        0 30px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* UPai Header */
+body.upai-login-active .upai-header {
+    text-align: center;
+    margin-bottom: 36px;
+}
+
+body.upai-login-active .upai-logo-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 36px;
+    color: white;
+    box-shadow: 
+        0 15px 35px rgba(102, 126, 234, 0.4),
+        0 5px 15px rgba(118, 75, 162, 0.3);
+    animation: upai-pulse 3s infinite;
+}
+
+@keyframes upai-pulse {
+    0%, 100% { 
+        box-shadow: 
+            0 15px 35px rgba(102, 126, 234, 0.4),
+            0 5px 15px rgba(118, 75, 162, 0.3);
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 
+            0 20px 45px rgba(102, 126, 234, 0.6),
+            0 8px 25px rgba(118, 75, 162, 0.5);
+        transform: scale(1.05);
+    }
+}
+
+body.upai-login-active .upai-title {
+    color: white !important;
+    font-size: 28px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    margin-bottom: 10px !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+body.upai-login-active .upai-subtitle {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 16px !important;
+    text-align: center !important;
+    margin-bottom: 36px !important;
+    line-height: 1.5 !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+/* ========== FORM STYLING - LOGIN PAGE ONLY ========== */
+
+/* Input Styling - Only on login page */
+body.upai-login-active input[type="email"],
+body.upai-login-active input[type="password"],
+body.upai-login-active input[type="text"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 16px !important;
+    color: white !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+    padding: 16px 20px !important;
+    font-size: 15px !important;
+    transition: all 0.3s ease !important;
+    width: 100% !important;
+    margin-bottom: 16px !important;
+}
+
+body.upai-login-active input[type="email"]:focus,
+body.upai-login-active input[type="password"]:focus,
+body.upai-login-active input[type="text"]:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    outline: none !important;
+    transform: translateY(-2px) !important;
+}
+
+body.upai-login-active input::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Button Styling - Only on login page */
+body.upai-login-active button[type="submit"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    border-radius: 16px !important;
+    color: white !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    padding: 16px 24px !important;
+    width: 100% !important;
+    transition: all 0.4s ease !important;
+    cursor: pointer !important;
+    margin-top: 12px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+}
+
+body.upai-login-active button[type="submit"]:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.6) !important;
+}
+
+body.upai-login-active button[type="submit"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s;
+}
+
+body.upai-login-active button[type="submit"]:hover::before {
+    left: 100%;
+}
+
+/* Social/Microsoft Button - Only on login page */
+body.upai-login-active button[class*="social"],
+body.upai-login-active .social-btn,
+body.upai-login-active a[class*="btn"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 16px !important;
+    color: white !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+    padding: 16px 20px !important;
+    width: 100% !important;
+    margin: 8px 0 !important;
+    transition: all 0.3s ease !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body.upai-login-active button[class*="social"]:hover,
+body.upai-login-active .social-btn:hover,
+body.upai-login-active a[class*="btn"]:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+    color: white !important;
+    text-decoration: none !important;
+}
+
+/* Text Colors - Only on login page */
+body.upai-login-active p,
+body.upai-login-active label,
+body.upai-login-active span,
+body.upai-login-active h1,
+body.upai-login-active h2 {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+body.upai-login-active a {
+    color: #667eea !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+    transition: color 0.3s ease !important;
+}
+
+body.upai-login-active a:hover {
+    color: #764ba2 !important;
+}
+
+/* Error Message Styling - Only on login page */
+body.upai-login-active .error,
+body.upai-login-active [class*="error"],
+body.upai-login-active .text-red-500 {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    margin: 12px 0 !important;
+    color: #fca5a5 !important;
+    font-family: 'Noto Sans Thai Looped', 'Inter', sans-serif !important;
+}
+
+/* Center the login form */
+body.upai-login-active .flex.min-h-screen {
+    position: relative !important;
+    z-index: 10 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+    padding: 20px !important;
+}
+
+/* ========== RESPONSIVE DESIGN ========== */
+
+@media (max-width: 768px) {
+    body.upai-login-active .upai-login-frame {
+        padding: 32px 24px !important;
+        margin: 15px !important;
+        max-width: 380px !important;
+    }
+    
+    body.upai-login-active .upai-title {
+        font-size: 24px !important;
+    }
+    
+    body.upai-login-active .upai-subtitle {
+        font-size: 14px !important;
+    }
+    
+    body.upai-login-active .upai-logo-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 32px;
+    }
+
+    .upai-rocket { font-size: 160px !important; }
+    .upai-brain { font-size: 110px !important; }
+    .upai-robot { font-size: 130px !important; }
+    .upai-satellite { font-size: 90px !important; }
+}
+
+@media (max-width: 480px) {
+    body.upai-login-active .upai-login-frame {
+        padding: 28px 20px !important;
+        margin: 12px !important;
+        max-width: 340px !important;
+    }
+    
+    body.upai-login-active .upai-title {
+        font-size: 22px !important;
+    }
+    
+    body.upai-login-active .upai-subtitle {
+        font-size: 13px !important;
+    }
+    
+    body.upai-login-active .upai-logo-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+    }
+
+    .upai-rocket { font-size: 110px !important; }
+    .upai-brain { font-size: 80px !important; }
+    .upai-robot { font-size: 90px !important; }
+    .upai-satellite { font-size: 65px !important; }
+}
+
+@media (max-width: 360px) {
+    body.upai-login-active .upai-login-frame {
+        padding: 24px 16px !important;
+        margin: 10px !important;
+        max-width: 320px !important;
+    }
+
+    .upai-rocket { font-size: 80px !important; }
+    .upai-brain { font-size: 60px !important; }
+    .upai-robot { font-size: 70px !important; }
+    .upai-satellite { font-size: 50px !important; }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .upai-star,
+    .upai-floating-element,
+    body.upai-login-active .upai-logo-icon {
+        animation: none !important;
+    }
+    
+    body.upai-login-active input:focus,
+    body.upai-login-active button:hover {
+        transform: none !important;
+    }
+}
+
+/* ========== END UPAI LOGIN THEME ========== */
+
+/* Force show Cloudflare elements */
+body.upai-login-active * {
+    visibility: visible !important;
+}
+
+body.upai-login-active iframe {
+    position: relative !important;
+    z-index: 1000 !important;
+    background: white !important;
+    border-radius: 8px !important;
+    margin: 16px 0 !important;
+}
+
+fixDarkModeToggle() ที่หา toggle หลายแบบ
+Force positioning และ styling
+รัน continuous fix เช่นกัน
+
+🎨 Smooth Transitions:
+
+เพิ่ม upai-fade-in animation
+ใช้ requestAnimationFrame สำหรับ smooth rendering
+ลดจำนวน stars เพื่อเพิ่ม performance
+
+📝 เพิ่ม CSS สำหรับ Smooth Loading
+เพิ่ม CSS นี้ในไฟล์ client/src/style.css:
+css/* ========== SMOOTH LOADING ENHANCEMENTS ========== */
+
+/* Prevent initial flash */
+body.upai-login-active {
+  transition: none !important;
+}
+
+/* Smooth reveal animation */
+@keyframes upai-fade-in {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+/* Enhanced Cloudflare Turnstile styling */
+body.upai-login-active .cf-turnstile,
+body.upai-login-active [class*="turnstile"],
+body.upai-login-active iframe[src*="cloudflare"] {
+  animation: upai-fade-in 0.5s ease-out 0.3s both !important;
+}
+
+/* Dark mode toggle hover effect */
+body.upai-login-active [class*="theme"]:hover,
+body.upai-login-active button[aria-label*="Dark"]:hover,
+body.upai-login-active button[aria-label*="Light"]:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  transform: scale(1.1) !important;
+}
+
+/* Reduce animation for better performance */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

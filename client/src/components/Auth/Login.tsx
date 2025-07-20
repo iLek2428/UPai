@@ -38,6 +38,29 @@ function Login() {
     startupConfig?.serverDomain &&
     !isAutoRedirectDisabled;
 
+  // Initialize UPai background effects
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Import and initialize UPai effects
+      import('../../utils/upaiEffects').then(({ initUPaiEffects }) => {
+        initUPaiEffects();
+      }).catch(() => {
+        console.log('UPai effects not available');
+      });
+    }
+
+    return () => {
+      // Cleanup effects when leaving
+      if (typeof window !== 'undefined') {
+        import('../../utils/upaiEffects').then(({ cleanupUPaiEffects }) => {
+          cleanupUPaiEffects();
+        }).catch(() => {
+          // Silently handle cleanup error
+        });
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (shouldAutoRedirect) {
       console.log('Auto-redirecting to OpenID provider...');
@@ -73,6 +96,7 @@ function Login() {
     );
   }
 
+  // Original Login component - ไม่เปลี่ยนแปลงอะไรเลย
   return (
     <>
       {error != null && <ErrorMessage>{localize(getLoginError(error))}</ErrorMessage>}

@@ -7,13 +7,12 @@ module.exports = {
   darkMode: ['class'],
   theme: {
     fontFamily: {
-      sans: ['Inter', 'sans-serif'],
+      // เพิ่ม Noto Sans Thai มาก่อน Inter
+      sans: ['Noto Sans Thai Looped', 'Inter', 'sans-serif'],
       mono: ['Roboto Mono', 'monospace'],
+      // เพิ่ม font family สำหรับใช้เฉพาะ
+      thai: ['Noto Sans Thai', 'sans-serif'],
     },
-    // fontFamily: {
-    //   sans: ['Söhne', 'sans-serif'],
-    //   mono: ['Söhne Mono', 'monospace'],
-    // },
     extend: {
       width: {
         authPageWidth: '370px',
