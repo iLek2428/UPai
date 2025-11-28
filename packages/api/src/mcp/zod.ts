@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { JsonSchemaType, ConvertJsonSchemaToZodOptions } from '~/types';
+import type { JsonSchemaType, ConvertJsonSchemaToZodOptions } from '@librechat/data-schemas';
 
 function isEmptyObjectSchema(jsonSchema?: JsonSchemaType): boolean {
   return (
@@ -350,7 +350,7 @@ export function convertJsonSchemaToZod(
     } else {
       zodSchema = z.string();
     }
-  } else if (schema.type === 'number') {
+  } else if (schema.type === 'number' || schema.type === 'integer' || schema.type === 'float') {
     zodSchema = z.number();
   } else if (schema.type === 'boolean') {
     zodSchema = z.boolean();
@@ -360,6 +360,18 @@ export function convertJsonSchemaToZod(
   } else if (schema.type === 'object') {
     const shape: Record<string, z.ZodType> = {};
     const properties = schema.properties ?? {};
+
+    /** Check if this is a bare object schema with no properties defined
+    and no explicit additionalProperties setting */
+    const isBareObjectSchema =
+      Object.keys(properties).length === 0 &&
+      schema.additionalProperties === undefined &&
+      !schema.patternProperties &&
+      !schema.propertyNames &&
+      !schema.$ref &&
+      !schema.allOf &&
+      !schema.anyOf &&
+      !schema.oneOf;
 
     for (const [key, value] of Object.entries(properties)) {
       // Handle nested oneOf/anyOf if transformOneOfAnyOf is enabled
@@ -436,8 +448,9 @@ export function convertJsonSchemaToZod(
     }
 
     // Handle additionalProperties for open-ended objects
-    if (schema.additionalProperties === true) {
+    if (schema.additionalProperties === true || isBareObjectSchema) {
       // This allows any additional properties with any type
+      // Bare object schemas are treated as passthrough to allow dynamic properties
       zodSchema = objectSchema.passthrough();
     } else if (typeof schema.additionalProperties === 'object') {
       // For specific additional property types
