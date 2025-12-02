@@ -3315,19 +3315,7 @@ body.upai-login-active iframe {
     margin: 16px 0 !important;
 }
 
-fixDarkModeToggle() ที่หา toggle หลายแบบ
-Force positioning และ styling
-รัน continuous fix เช่นกัน
-
-🎨 Smooth Transitions:
-
-เพิ่ม upai-fade-in animation
-ใช้ requestAnimationFrame สำหรับ smooth rendering
-ลดจำนวน stars เพื่อเพิ่ม performance
-
-📝 เพิ่ม CSS สำหรับ Smooth Loading
-เพิ่ม CSS นี้ในไฟล์ client/src/style.css:
-css/* ========== SMOOTH LOADING ENHANCEMENTS ========== */
+/* ========== SMOOTH LOADING ENHANCEMENTS ========== */
 
 /* Prevent initial flash */
 body.upai-login-active {
