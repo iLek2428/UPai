@@ -11,13 +11,12 @@ module.exports = {
   darkMode: ['class'],
   theme: {
     fontFamily: {
-      sans: ['Inter', 'sans-serif'],
+      // เพิ่ม Noto Sans Thai มาก่อน Inter
+      sans: ['Noto Sans Thai Looped', 'Inter', 'sans-serif'],
       mono: ['Roboto Mono', 'monospace'],
+      // เพิ่ม font family สำหรับใช้เฉพาะ
+      thai: ['Noto Sans Thai', 'sans-serif'],
     },
-    // fontFamily: {
-    //   sans: ['Söhne', 'sans-serif'],
-    //   mono: ['Söhne Mono', 'monospace'],
-    // },
     extend: {
       width: {
         authPageWidth: '370px',
@@ -92,7 +91,6 @@ module.exports = {
         'text-secondary-alt': 'var(--text-secondary-alt)',
         'text-tertiary': 'var(--text-tertiary)',
         'text-warning': 'var(--text-warning)',
-        'text-destructive': 'var(--text-destructive)',
         'ring-primary': 'var(--ring-primary)',
         'header-primary': 'var(--header-primary)',
         'header-hover': 'var(--header-hover)',
@@ -119,7 +117,6 @@ module.exports = {
         'border-medium-alt': 'var(--border-medium-alt)',
         'border-heavy': 'var(--border-heavy)',
         'border-xheavy': 'var(--border-xheavy)',
-        'border-destructive': 'var(--border-destructive)',
         /* These are test styles */
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

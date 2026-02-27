@@ -60,11 +60,11 @@ function AuthLayout({
     <div className="relative flex min-h-screen flex-col bg-white dark:bg-gray-900">
       <Banner />
       <BlinkAnimation active={isFetching}>
-        <div className="mt-6 h-10 w-full bg-cover">
+        <div className="mt-6 h-24 w-full bg-cover">
           <img
             src="assets/logo.svg"
             className="h-full w-full object-contain"
-            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'LibreChat' })}
+            alt={localize('com_ui_logo', { 0: startupConfig?.appTitle ?? 'มหาวิทยาลัยธรรมศาสตร์' })}
           />
         </div>
       </BlinkAnimation>
@@ -73,7 +73,7 @@ function AuthLayout({
         <ThemeSelector />
       </div>
 
-      <main className="flex flex-grow items-center justify-center">
+      <div className="flex flex-grow items-center justify-center">
         <div className="w-authPageWidth overflow-hidden bg-white px-6 py-4 dark:bg-gray-900 sm:max-w-md sm:rounded-lg">
           {!hasStartupConfigError && !isFetching && header && (
             <h1
@@ -89,7 +89,7 @@ function AuthLayout({
               <SocialLoginRender startupConfig={startupConfig} />
             )}
         </div>
-      </main>
+      </div>
       <Footer startupConfig={startupConfig} />
     </div>
   );
