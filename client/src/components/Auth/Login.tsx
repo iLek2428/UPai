@@ -67,19 +67,17 @@ function Login() {
   // Initialize UPai background effects
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Import and initialize UPai effects
-      import('../../utils/upaiEffects').then(({ initUPaiEffects }) => {
-        initUPaiEffects();
+      import('../../utils/upaiEffects').then(({ initWarpEffect }) => {
+        initWarpEffect();
       }).catch(() => {
         console.log('UPai effects not available');
       });
     }
 
     return () => {
-      // Cleanup effects when leaving
       if (typeof window !== 'undefined') {
-        import('../../utils/upaiEffects').then(({ cleanupUPaiEffects }) => {
-          cleanupUPaiEffects();
+        import('../../utils/upaiEffects').then(({ cleanupWarpEffect }) => {
+          cleanupWarpEffect();
         }).catch(() => {
           // Silently handle cleanup error
         });
@@ -120,6 +118,7 @@ function Login() {
       </div>
     );
   }
+
   return (
     <>
       {error != null && <ErrorMessage>{localize(getLoginError(error))}</ErrorMessage>}

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ThemeSelector } from '@librechat/client';
 import { TStartupConfig } from 'librechat-data-provider';
 import { ErrorMessage } from '~/components/Auth/ErrorMessage';
@@ -6,6 +7,7 @@ import SocialLoginRender from './SocialLoginRender';
 import { BlinkAnimation } from './BlinkAnimation';
 import { Banner } from '../Banners';
 import Footer from './Footer';
+import { initWarpEffect, cleanupWarpEffect, pauseWarpEffect, resumeWarpEffect } from '~/utils/upaiEffects';
 
 function AuthLayout({
   children,
@@ -26,7 +28,24 @@ function AuthLayout({
 }) {
   const localize = useLocalize();
 
+  // ── Warp Effect ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    initWarpEffect();
+    return () => cleanupWarpEffect();
+  }, []);
+
+  // ── Pause / Resume on tab visibility ─────────────────────────────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      document.hidden ? pauseWarpEffect() : resumeWarpEffect();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const hasStartupConfigError = startupConfigError !== null && startupConfigError !== undefined;
+
   const DisplayError = () => {
     if (hasStartupConfigError) {
       return (
@@ -57,7 +76,7 @@ function AuthLayout({
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-white dark:bg-gray-900">
+    <div className="relative flex min-h-screen flex-col bg-transparent dark:bg-transparent">
       <Banner />
       <BlinkAnimation active={isFetching}>
         <div className="mt-6 h-24 w-full bg-cover">
@@ -74,7 +93,7 @@ function AuthLayout({
       </div>
 
       <div className="flex flex-grow items-center justify-center">
-        <div className="w-authPageWidth overflow-hidden bg-white px-6 py-4 dark:bg-gray-900 sm:max-w-md sm:rounded-lg">
+        <div className="w-authPageWidth overflow-hidden bg-transparent px-6 py-4 sm:max-w-md sm:rounded-lg">
           {!hasStartupConfigError && !isFetching && header && (
             <h1
               className="mb-4 text-center text-3xl font-semibold text-black dark:text-white"
