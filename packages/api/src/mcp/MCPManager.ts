@@ -1,8 +1,10 @@
 import pick from 'lodash/pick';
 import { logger } from '@librechat/data-schemas';
+import { Permissions, PermissionTypes } from 'librechat-data-provider';
 import { CallToolResultSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { RequestOptions } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { TokenMethods, IUser } from '@librechat/data-schemas';
+import type { OboTokenResolver, OboTrustChecker } from '~/mcp/oauth/obo';
 import type { GraphTokenResolver } from '~/utils/graph';
 import type { FlowStateManager } from '~/flow/manager';
 import type { MCPOAuthTokens } from './oauth';
@@ -14,10 +16,28 @@ import { MCPServersRegistry } from './registry/MCPServersRegistry';
 import { UserConnectionManager } from './UserConnectionManager';
 import { ConnectionsRepository } from './ConnectionsRepository';
 import { MCPConnectionFactory } from './MCPConnectionFactory';
+import { OboTokenResolutionError, resolveOboToken } from '~/mcp/oauth';
 import { preProcessGraphTokens } from '~/utils/graph';
 import { formatToolContent } from './parsers';
 import { MCPConnection } from './connection';
 import { processMCPEnv } from '~/utils/env';
+import { isUserSourced, requiresOAuthMachinery, requiresUserScopedConnection } from './utils';
+
+function createOboToolCallErrorMessage(
+  logPrefix: string,
+  toolName: string,
+  error: OboTokenResolutionError,
+): string {
+  let failureSuffix = 'Re-authenticate the user and retry.';
+
+  if (error.retryable) {
+    failureSuffix = 'Please retry.';
+  } else if (error.reason === 'exchange_failed') {
+    failureSuffix = 'Re-authenticate the user or verify the configured OBO scopes and retry.';
+  }
+
+  return `${logPrefix} ${error.userMessage} Cannot execute tool ${toolName}. ${failureSuffix}`;
+}
 
 /**
  * Centralized manager for MCP server connections and tool execution.
@@ -53,14 +73,33 @@ export class MCPManager extends UserConnectionManager {
       user?: IUser;
       forceNew?: boolean;
       flowManager?: FlowStateManager<MCPOAuthTokens | null>;
+      /** Pre-resolved config for config-source servers not in YAML/DB */
+      serverConfig?: t.ParsedServerConfig;
     } & Omit<t.OAuthConnectionOptions, 'useOAuth' | 'user' | 'flowManager'>,
   ): Promise<MCPConnection> {
+    const userId = args.user?.id;
+    const effectiveConfig =
+      args.serverConfig ??
+      (userId
+        ? await MCPServersRegistry.getInstance().getServerConfig(args.serverName, userId)
+        : undefined);
+
+    if (effectiveConfig && userId && requiresUserScopedConnection(effectiveConfig)) {
+      return this.getUserConnection({
+        ...args,
+        serverConfig: effectiveConfig,
+      } as Parameters<typeof this.getUserConnection>[0]);
+    }
+
     //the get method checks if the config is still valid as app level
     const existingAppConnection = await this.appConnections!.get(args.serverName);
     if (existingAppConnection) {
       return existingAppConnection;
-    } else if (args.user?.id) {
-      return this.getUserConnection(args as Parameters<typeof this.getUserConnection>[0]);
+    } else if (userId) {
+      return this.getUserConnection({
+        ...args,
+        serverConfig: effectiveConfig,
+      } as Parameters<typeof this.getUserConnection>[0]);
     } else {
       throw new McpError(
         ErrorCode.InvalidRequest,
@@ -88,25 +127,40 @@ export class MCPManager extends UserConnectionManager {
       logger.debug(`${logPrefix} [Discovery] App connection not available, trying discovery mode`);
     }
 
-    const serverConfig = (await MCPServersRegistry.getInstance().getServerConfig(
+    const serverConfig = await MCPServersRegistry.getInstance().getServerConfig(
       serverName,
       user?.id,
-    )) as t.MCPOptions | null;
+      args.configServers,
+    );
 
     if (!serverConfig) {
       logger.warn(`${logPrefix} [Discovery] Server config not found`);
       return { tools: null, oauthRequired: false, oauthUrl: null };
     }
 
-    const useOAuth = Boolean(
-      serverConfig.requiresOAuth || (serverConfig as t.ParsedServerConfig).oauthMetadata,
-    );
+    const useOAuth = requiresOAuthMachinery(serverConfig);
 
-    const useSSRFProtection = MCPServersRegistry.getInstance().shouldEnableSSRFProtection();
-    const basic: t.BasicConnectionOptions = { serverName, serverConfig, useSSRFProtection };
+    const registry = MCPServersRegistry.getInstance();
+    const useSSRFProtection = registry.shouldEnableSSRFProtection();
+    const allowedDomains = registry.getAllowedDomains();
+    const allowedAddresses = registry.getAllowedAddresses();
+    const dbSourced = isUserSourced(serverConfig);
+    const basic: t.BasicConnectionOptions = {
+      dbSourced,
+      serverName,
+      serverConfig,
+      useSSRFProtection,
+      allowedDomains,
+      allowedAddresses,
+    };
 
     if (!useOAuth) {
-      const result = await MCPConnectionFactory.discoverTools(basic);
+      const result = await MCPConnectionFactory.discoverTools(basic, {
+        user: args.user,
+        customUserVars: args.customUserVars,
+        requestBody: args.requestBody,
+        connectionTimeout: args.connectionTimeout,
+      });
       return {
         tools: result.tools,
         oauthRequired: result.oauthRequired,
@@ -129,6 +183,8 @@ export class MCPManager extends UserConnectionManager {
       customUserVars: args.customUserVars,
       requestBody: args.requestBody,
       connectionTimeout: args.connectionTimeout,
+      oboTokenResolver: args.oboTokenResolver,
+      oboTrustChecker: args.oboTrustChecker,
     });
 
     return { tools: result.tools, oauthRequired: result.oauthRequired, oauthUrl: result.oauthUrl };
@@ -181,9 +237,15 @@ export class MCPManager extends UserConnectionManager {
    * @param serverNames Optional array of server names. If not provided or empty, returns all servers.
    * @returns Object mapping server names to their instructions
    */
-  private async getInstructions(serverNames?: string[]): Promise<Record<string, string>> {
+  private async getInstructions(
+    serverNames?: string[],
+    configServers?: Record<string, t.ParsedServerConfig>,
+  ): Promise<Record<string, string>> {
     const instructions: Record<string, string> = {};
-    const configs = await MCPServersRegistry.getInstance().getAllServerConfigs();
+    const configs = await MCPServersRegistry.getInstance().getAllServerConfigs(
+      undefined,
+      configServers,
+    );
     for (const [serverName, config] of Object.entries(configs)) {
       if (config.serverInstructions != null) {
         instructions[serverName] = config.serverInstructions as string;
@@ -198,9 +260,11 @@ export class MCPManager extends UserConnectionManager {
    * @param serverNames Optional array of server names to include. If not provided, includes all servers.
    * @returns Formatted instructions string ready for context injection
    */
-  public async formatInstructionsForContext(serverNames?: string[]): Promise<string> {
-    /** Instructions for specified servers or all stored instructions */
-    const instructionsToInclude = await this.getInstructions(serverNames);
+  public async formatInstructionsForContext(
+    serverNames?: string[],
+    configServers?: Record<string, t.ParsedServerConfig>,
+  ): Promise<string> {
+    const instructionsToInclude = await this.getInstructions(serverNames, configServers);
 
     if (Object.keys(instructionsToInclude).length === 0) {
       return '';
@@ -236,6 +300,7 @@ Please follow these instructions when using tools from the respective MCP server
   async callTool({
     user,
     serverName,
+    serverConfig: providedConfig,
     toolName,
     provider,
     toolArguments,
@@ -247,9 +312,13 @@ Please follow these instructions when using tools from the respective MCP server
     oauthEnd,
     customUserVars,
     graphTokenResolver,
+    oboTokenResolver,
+    oboTrustChecker,
   }: {
     user?: IUser;
     serverName: string;
+    /** Pre-resolved config from tool creation context — avoids readThrough TTL and cross-tenant issues */
+    serverConfig?: t.ParsedServerConfig;
     toolName: string;
     provider: t.Provider;
     toolArguments?: Record<string, unknown>;
@@ -261,6 +330,8 @@ Please follow these instructions when using tools from the respective MCP server
     oauthStart?: (authURL: string) => Promise<void>;
     oauthEnd?: () => Promise<void>;
     graphTokenResolver?: GraphTokenResolver;
+    oboTokenResolver?: OboTokenResolver;
+    oboTrustChecker?: OboTrustChecker;
   }): Promise<t.FormattedToolResponse> {
     /** User-specific connection */
     let connection: MCPConnection | undefined;
@@ -277,9 +348,12 @@ Please follow these instructions when using tools from the respective MCP server
         tokenMethods,
         oauthStart,
         oauthEnd,
+        oboTokenResolver,
+        oboTrustChecker,
         signal: options?.signal,
         customUserVars,
         requestBody,
+        serverConfig: providedConfig,
       });
 
       if (!(await connection.isConnected())) {
@@ -290,26 +364,78 @@ Please follow these instructions when using tools from the respective MCP server
         );
       }
 
-      const rawConfig = (await MCPServersRegistry.getInstance().getServerConfig(
-        serverName,
-        userId,
-      )) as t.MCPOptions;
+      const rawConfig =
+        providedConfig ??
+        (await MCPServersRegistry.getInstance().getServerConfig(serverName, userId));
+      if (!rawConfig) {
+        throw new McpError(
+          ErrorCode.InvalidRequest,
+          `${logPrefix} Configuration for server "${serverName}" not found.`,
+        );
+      }
+      const isDbSourced = isUserSourced(rawConfig);
 
-      // Pre-process Graph token placeholders (async) before sync processMCPEnv
-      const graphProcessedConfig = await preProcessGraphTokens(rawConfig, {
-        user,
-        graphTokenResolver,
-        scopes: process.env.GRAPH_API_SCOPES,
-      });
+      /** Pre-process Graph token placeholders (async) before the synchronous processMCPEnv pass */
+      const graphProcessedConfig = isDbSourced
+        ? (rawConfig as t.MCPOptions)
+        : await preProcessGraphTokens(rawConfig as t.MCPOptions, {
+            user,
+            graphTokenResolver,
+            scopes: process.env.GRAPH_API_SCOPES,
+          });
       const currentOptions = processMCPEnv({
         user,
-        options: graphProcessedConfig,
-        customUserVars: customUserVars,
         body: requestBody,
+        dbSourced: isDbSourced,
+        options: graphProcessedConfig,
+        customUserVars,
       });
-      if ('headers' in currentOptions) {
-        connection.setRequestHeaders(currentOptions.headers || {});
+
+      const resolvedHeaders: Record<string, string> =
+        'headers' in currentOptions ? { ...(currentOptions.headers || {}) } : {};
+
+      /** Refresh OBO token on each tool call to ensure it's current */
+      const oboConfig = rawConfig.obo;
+      if (oboConfig && oboTokenResolver && user) {
+        const oboTrusted = oboTrustChecker
+          ? await oboTrustChecker({
+              source: rawConfig.source,
+              author: rawConfig.author,
+              dbId: rawConfig.dbId,
+            })
+          : true;
+        if (!oboTrusted) {
+          logger.warn(
+            `${logPrefix} OBO config not trusted (author lacks ${PermissionTypes.MCP_SERVERS}.${Permissions.CONFIGURE_OBO}); refusing to mint a downstream token`,
+          );
+          throw new McpError(
+            ErrorCode.InternalError,
+            `${logPrefix} OBO is not permitted for server "${serverName}". The user who configured it no longer has permission to use OBO.`,
+          );
+        }
+        let oboTokens: MCPOAuthTokens;
+        try {
+          oboTokens = await resolveOboToken(user, oboConfig, oboTokenResolver);
+        } catch (error) {
+          if (error instanceof OboTokenResolutionError) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              createOboToolCallErrorMessage(logPrefix, toolName, error),
+            );
+          }
+          throw error;
+        }
+
+        if (!oboTokens.access_token) {
+          throw new McpError(
+            ErrorCode.InternalError,
+            `${logPrefix} OBO token refresh failed. Cannot execute tool ${toolName}. Re-authenticate the user and retry.`,
+          );
+        }
+        resolvedHeaders['Authorization'] = `Bearer ${oboTokens.access_token}`;
       }
+
+      connection.setRequestHeaders(resolvedHeaders);
 
       const result = await connection.client.request(
         {

@@ -177,12 +177,52 @@ export enum ReasoningEffort {
   xhigh = 'xhigh',
 }
 
+export enum ReasoningParameterFormat {
+  disabled = 'disabled',
+  reasoningEffort = 'reasoning_effort',
+  reasoningObject = 'reasoning_object',
+}
+
+export enum ReasoningResponseKey {
+  reasoning = 'reasoning',
+  reasoningContent = 'reasoning_content',
+}
+
 export enum AnthropicEffort {
   unset = '',
   low = 'low',
   medium = 'medium',
   high = 'high',
+  xhigh = 'xhigh',
   max = 'max',
+}
+
+/**
+ * Controls whether the model's reasoning content is returned in responses.
+ *
+ * - `'auto'` - LibreChat decides: opt in to `'summarized'` for models that
+ *   omit by default (Opus 4.7+), leave the field off for older models.
+ * - `'summarized'` - always request a post-hoc summary of the reasoning.
+ * - `'omitted'` - always suppress reasoning content. Slightly lower latency.
+ *
+ * See https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7#thinking-content-omitted-by-default
+ */
+export enum ThinkingDisplay {
+  auto = 'auto',
+  summarized = 'summarized',
+  omitted = 'omitted',
+}
+
+/**
+ * Wire-level values accepted by the Anthropic Messages API `thinking.display`
+ * field. Excludes the LibreChat-only `'auto'` sentinel.
+ */
+export type ThinkingDisplayWireValue = Exclude<ThinkingDisplay, ThinkingDisplay.auto>;
+
+export enum BedrockReasoningConfig {
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
 }
 
 export enum ReasoningSummary {
@@ -194,6 +234,14 @@ export enum ReasoningSummary {
 
 export enum Verbosity {
   none = '',
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
+}
+
+export enum ThinkingLevel {
+  unset = '',
+  minimal = 'minimal',
   low = 'low',
   medium = 'medium',
   high = 'high',
@@ -213,9 +261,13 @@ export const imageDetailValue = {
 
 export const eImageDetailSchema = z.nativeEnum(ImageDetail);
 export const eReasoningEffortSchema = z.nativeEnum(ReasoningEffort);
+export const eReasoningParameterFormatSchema = z.nativeEnum(ReasoningParameterFormat);
+export const eReasoningResponseKeySchema = z.nativeEnum(ReasoningResponseKey);
 export const eAnthropicEffortSchema = z.nativeEnum(AnthropicEffort);
+export const eThinkingDisplaySchema = z.nativeEnum(ThinkingDisplay);
 export const eReasoningSummarySchema = z.nativeEnum(ReasoningSummary);
 export const eVerbositySchema = z.nativeEnum(Verbosity);
+export const eThinkingLevelSchema = z.nativeEnum(ThinkingLevel);
 
 export const defaultAssistantFormValues = {
   assistant: '',
@@ -243,11 +295,8 @@ export const defaultAgentFormValues = {
   tools: [],
   tool_options: {},
   provider: {},
-  projectIds: [],
   edges: [],
   artifacts: '',
-  /** @deprecated Use ACL permissions instead */
-  isCollaborative: false,
   recursion_limit: undefined,
   [Tools.execute_code]: false,
   [Tools.file_search]: false,
@@ -257,6 +306,16 @@ export const defaultAgentFormValues = {
     name: '',
     email: '',
   },
+  /** Optional allowlist. Only applies when `skills_enabled === true`.
+   *  Empty/undefined + enabled = full catalog; non-empty + enabled = narrow to ids. */
+  skills: undefined as string[] | undefined,
+  /** Master toggle for skill use on this agent. `true` activates skills
+   *  (full catalog unless `skills` narrows it). Anything else = inactive. */
+  skills_enabled: undefined as boolean | undefined,
+  /** `undefined` = feature disabled by default (no subagent tool injected). */
+  subagents: undefined as
+    | { enabled?: boolean; allowSelf?: boolean; agent_ids?: string[] }
+    | undefined,
 };
 
 export const ImageVisionTool: FunctionTool = {
@@ -320,15 +379,45 @@ export const openAISettings = {
   },
 };
 
+/**
+ * `65535` (not 65536) is the value valid on both Google AI Studio and Vertex AI:
+ * Vertex caps current Gemini text models at 65,535 output tokens, so defaulting to
+ * 65,536 would make otherwise-default Vertex requests fail validation.
+ */
+const GOOGLE_MAX_OUTPUT = 65535 as const;
+const GOOGLE_IMAGE_MAX_OUTPUT = 32768 as const;
+const GOOGLE_LEGACY_MAX_OUTPUT = 8192 as const;
+
+/**
+ * Resolves the documented max output-token limit for a Google/Gemini model.
+ * Current Gemini text models (2.5 and 3+) support 64K output tokens; their image
+ * variants (e.g. `gemini-2.5-flash-image`) cap at 32K; legacy/deprecated models
+ * (2.0 and earlier, including legacy image models) and Gemma retain the 8K limit.
+ */
+const getGoogleMaxOutputTokens = (modelName: string): number => {
+  if (/gemini-(?:2\.5|[3-9]|\d{2,})/i.test(modelName)) {
+    if (/image/i.test(modelName)) {
+      return GOOGLE_IMAGE_MAX_OUTPUT;
+    }
+    return GOOGLE_MAX_OUTPUT;
+  }
+  return GOOGLE_LEGACY_MAX_OUTPUT;
+};
+
 export const googleSettings = {
   model: {
     default: 'gemini-1.5-flash-latest' as const,
   },
   maxOutputTokens: {
     min: 1 as const,
-    max: 64000 as const,
+    max: GOOGLE_MAX_OUTPUT,
     step: 1 as const,
-    default: 8192 as const,
+    default: GOOGLE_LEGACY_MAX_OUTPUT,
+    reset: (modelName: string): number => getGoogleMaxOutputTokens(modelName),
+    set: (value: number, modelName: string): number => {
+      const max = getGoogleMaxOutputTokens(modelName);
+      return value > max ? max : value;
+    },
   },
   temperature: {
     min: 0 as const,
@@ -359,6 +448,9 @@ export const googleSettings = {
      * the budget based on the complexity of the request.
      */
     default: -1 as const,
+  },
+  thinkingLevel: {
+    default: ThinkingLevel.unset as const,
   },
 };
 
@@ -476,8 +568,13 @@ export const anthropicSettings = {
       AnthropicEffort.low,
       AnthropicEffort.medium,
       AnthropicEffort.high,
+      AnthropicEffort.xhigh,
       AnthropicEffort.max,
     ],
+  },
+  thinkingDisplay: {
+    default: ThinkingDisplay.auto,
+    options: [ThinkingDisplay.auto, ThinkingDisplay.summarized, ThinkingDisplay.omitted],
   },
   web_search: {
     default: false as const,
@@ -545,6 +642,8 @@ export const tPluginAuthConfigSchema = z.object({
   label: z.string(),
   description: z.string(),
   optional: z.boolean().optional(),
+  /** Whether the field holds a secret and should be masked in the UI (defaults to masked when omitted). */
+  sensitive: z.boolean().optional(),
 });
 
 export type TPluginAuthConfig = z.infer<typeof tPluginAuthConfigSchema>;
@@ -594,6 +693,8 @@ export const tMessageSchema = z.object({
   /** @deprecated */
   generation: z.string().nullable().optional(),
   isCreatedByUser: z.boolean(),
+  isTemporary: z.boolean().optional(),
+  expiredAt: z.string().nullable().optional(),
   error: z.boolean().optional(),
   clientTimestamp: z.string().optional(),
   createdAt: z
@@ -615,6 +716,39 @@ export const tMessageSchema = z.object({
   feedback: feedbackSchema.optional(),
   /** metadata */
   metadata: z.record(z.unknown()).optional(),
+  contextMeta: z
+    .object({
+      calibrationRatio: z
+        .number()
+        .optional()
+        .describe(
+          'EMA ratio of provider-reported vs local token estimates; seeds the pruner on subsequent runs',
+        ),
+      encoding: z
+        .string()
+        .optional()
+        .describe(
+          'Tokenizer encoding used when this ratio was computed (e.g. "claude", "o200k_base")',
+        ),
+    })
+    .optional(),
+  /**
+   * Skill names the user invoked manually via the `$` popover on this turn.
+   * Purely UI metadata — `SkillPills` renders these above the message
+   * bubble so users can see which skills they asked for in history and on
+   * reload. Runtime resolution uses the top-level payload field with the
+   * same name. Empty / absent for model-invoked skills (shown as tool_call
+   * content parts on the assistant message instead).
+   */
+  manualSkills: z.array(z.string()).optional(),
+  /**
+   * Skill names auto-primed on this turn because their `always-apply`
+   * frontmatter flag is set. Persisted at turn time so the pinned-variant
+   * pills on the user bubble survive reload and stay stable across later
+   * edits to the skill's `alwaysApply` flag (the user bubble reflects
+   * what actually ran, not the current catalog).
+   */
+  alwaysAppliedSkills: z.array(z.string()).optional(),
 });
 
 export type MemoryArtifact = {
@@ -716,6 +850,7 @@ export const tConversationSchema = z.object({
   system: z.string().optional(),
   thinking: z.boolean().optional(),
   thinkingBudget: coerceNumber.optional(),
+  thinkingLevel: eThinkingLevelSchema.optional(),
   stream: z.boolean().optional(),
   /* artifacts */
   artifacts: z.string().optional(),
@@ -740,6 +875,8 @@ export const tConversationSchema = z.object({
   useResponsesApi: z.boolean().optional(),
   /* Anthropic: Effort control */
   effort: eAnthropicEffortSchema.optional().nullable(),
+  /* Anthropic: Thinking visibility (Opus 4.7+ opt-in) */
+  thinkingDisplay: eThinkingDisplaySchema.optional().nullable(),
   /* OpenAI Responses API / Anthropic API / Google API */
   web_search: z.boolean().optional(),
   /* disable streaming */
@@ -765,6 +902,7 @@ export const tConversationSchema = z.object({
   iconURL: z.string().nullable().optional(),
   /* temporary chat */
   expiredAt: z.string().nullable().optional(),
+  isTemporary: z.boolean().optional(),
   /* file token limits */
   fileTokenLimit: coerceNumber.optional(),
   /** @deprecated */
@@ -862,7 +1000,9 @@ export const tQueryParamsSchema = tConversationSchema
     promptCache: true,
     thinking: true,
     thinkingBudget: true,
+    thinkingLevel: true,
     effort: true,
+    thinkingDisplay: true,
     /** @endpoints bedrock */
     region: true,
     /** @endpoints bedrock */
@@ -890,6 +1030,34 @@ export const tQueryParamsSchema = tConversationSchema
     }),
   );
 
+/** Narrowed preset schema for use in model specs — omits system/DB/deprecated fields.
+ *
+ * `greeting` and `iconURL` are admin-configurable display fields on a model spec's
+ * preset (landing greeting, preset-level icon fallback) and must be preserved.
+ * `spec` is set by the client from `modelSpec.name` via `getModelSpecPreset` and is
+ * omitted to avoid duplicate configuration surface.
+ */
+export const tModelSpecPresetSchema = tPresetSchema.omit({
+  conversationId: true,
+  presetId: true,
+  title: true,
+  defaultPreset: true,
+  order: true,
+  isArchived: true,
+  user: true,
+  messages: true,
+  tags: true,
+  file_ids: true,
+  expiredAt: true,
+  parentMessageId: true,
+  resendImages: true,
+  chatGptLabel: true,
+  presetOverride: true,
+  spec: true,
+});
+
+export type TModelSpecPreset = z.infer<typeof tModelSpecPresetSchema>;
+
 export type TPreset = z.infer<typeof tPresetSchema>;
 
 export type TSetOption = (
@@ -904,6 +1072,7 @@ export type TConversation = z.infer<typeof tConversationSchema> & {
 export const tSharedLinkSchema = z.object({
   conversationId: z.string(),
   shareId: z.string(),
+  targetMessageId: z.string().optional(),
   messages: z.array(z.string()),
   isPublic: z.boolean(),
   title: z.string(),
@@ -937,6 +1106,7 @@ export const googleBaseSchema = tConversationSchema.pick({
   topK: true,
   thinking: true,
   thinkingBudget: true,
+  thinkingLevel: true,
   web_search: true,
   fileTokenLimit: true,
   iconURL: true,
@@ -968,6 +1138,7 @@ export const googleGenConfigSchema = z
       .object({
         includeThoughts: z.boolean().optional(),
         thinkingBudget: coerceNumber.optional(),
+        thinkingLevel: z.string().optional(),
       })
       .optional(),
     web_search: z.boolean().optional(),
@@ -1128,13 +1299,18 @@ export const openAISchema = openAIBaseSchema
   .transform((obj: Partial<TConversation>) => removeNullishValues(obj, true))
   .catch(() => ({}));
 
+export const openRouterSchema = openAIBaseSchema
+  .merge(tConversationSchema.pick({ promptCache: true }))
+  .transform((obj: Partial<TConversation>) => removeNullishValues(obj, true))
+  .catch(() => ({}));
+
 export const compactGoogleSchema = googleBaseSchema
   .transform((obj) => {
     const newObj: Partial<TConversation> = { ...obj };
     if (newObj.temperature === google.temperature.default) {
       delete newObj.temperature;
     }
-    if (newObj.maxOutputTokens === google.maxOutputTokens.default) {
+    if (newObj.maxOutputTokens === google.maxOutputTokens.reset(newObj.model ?? '')) {
       delete newObj.maxOutputTokens;
     }
     if (newObj.topP === google.topP.default) {
@@ -1161,6 +1337,7 @@ export const anthropicBaseSchema = tConversationSchema.pick({
   thinking: true,
   thinkingBudget: true,
   effort: true,
+  thinkingDisplay: true,
   artifacts: true,
   iconURL: true,
   greeting: true,

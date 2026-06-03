@@ -1,4 +1,8 @@
 export * from './app';
+/* Artifacts */
+export * from './artifacts';
+/* Admin */
+export * from './admin';
 export * from './cdn';
 /* Auth */
 export * from './auth';
@@ -12,9 +16,13 @@ export * from './mcp/oauth';
 export * from './mcp/auth';
 export * from './mcp/zod';
 export * from './mcp/errors';
+export * from './mcp/cache';
+export * from './mcp/tools';
 /* Utilities */
 export * from './mcp/utils';
 export * from './utils';
+export { default as Tokenizer, countTokens } from './utils/tokenizer';
+export type { EncodingName } from './utils/tokenizer';
 export * from './db/utils';
 /* OAuth */
 export * from './oauth';
@@ -27,14 +35,20 @@ export * from './flow/manager';
 export * from './middleware';
 /* Memory */
 export * from './memory';
+/* Model Specs */
+export * from './modelSpecs';
 /* Agents */
 export * from './agents';
 /* Prompts */
 export * from './prompts';
+/* Skills */
+export * from './skills';
 /* Endpoints */
 export * from './endpoints';
 /* Files */
 export * from './files';
+/* Storage */
+export * from './storage';
 /* Tools */
 export * from './tools';
 /* web search */
@@ -45,6 +59,8 @@ export * from './cache';
 export * from './stream';
 /* Diagnostics */
 export { memoryDiagnostics } from './utils/memory';
+/* RUM */
+export * from './rum/proxy';
 /* types */
 export type * from './mcp/types';
 export type * from './flow/types';

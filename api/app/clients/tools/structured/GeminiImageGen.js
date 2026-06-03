@@ -3,8 +3,8 @@ const sharp = require('sharp');
 const { v4 } = require('uuid');
 const { ProxyAgent } = require('undici');
 const { GoogleGenAI } = require('@google/genai');
-const { tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
+const { tool } = require('@librechat/agents/langchain/tools');
 const { ContentTypes, EImageOutputType } = require('librechat-data-provider');
 const {
   geminiToolkit,
@@ -13,8 +13,7 @@ const {
   getTransactionsConfig,
 } = require('@librechat/api');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
-const { spendTokens } = require('~/models/spendTokens');
-const { getFiles } = require('~/models/File');
+const { spendTokens, getFiles } = require('~/models');
 
 /**
  * Configure proxy support for Google APIs
@@ -251,8 +250,9 @@ function checkForSafetyBlock(response) {
  * @param {string} params.userId - The user ID
  * @param {string} params.conversationId - The conversation ID
  * @param {string} params.model - The model name
+ * @param {string} [params.messageId] - The response message ID for transaction correlation
  */
-async function recordTokenUsage({ usageMetadata, req, userId, conversationId, model }) {
+async function recordTokenUsage({ usageMetadata, req, userId, conversationId, model, messageId }) {
   if (!usageMetadata) {
     logger.debug('[GeminiImageGen] No usage metadata available for balance tracking');
     return;
@@ -288,6 +288,7 @@ async function recordTokenUsage({ usageMetadata, req, userId, conversationId, mo
       {
         user: userId,
         model,
+        messageId,
         conversationId,
         context: 'image_generation',
         balance,
@@ -445,10 +446,14 @@ function createGeminiImageTool(fields = {}) {
       ];
 
       const conversationId = runnableConfig?.configurable?.thread_id;
+      const messageId =
+        runnableConfig?.configurable?.run_id ??
+        runnableConfig?.configurable?.requestBody?.messageId;
       recordTokenUsage({
         usageMetadata: apiResponse.usageMetadata,
         req,
         userId,
+        messageId,
         conversationId,
         model: geminiModel,
       }).catch((error) => {

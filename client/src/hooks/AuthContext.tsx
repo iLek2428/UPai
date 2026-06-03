@@ -8,9 +8,15 @@ import {
   createContext,
 } from 'react';
 import { debounce } from 'lodash';
-import { useRecoilState } from 'recoil';
+import { useRecoilState, useSetRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
-import { setTokenHeader, SystemRoles } from 'librechat-data-provider';
+import {
+  apiBaseUrl,
+  SystemRoles,
+  setTokenHeader,
+  isSystemRoleName,
+  buildLoginRedirectUrl,
+} from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
 import type { ReactNode } from 'react';
 import {
@@ -20,12 +26,16 @@ import {
   useLogoutUserMutation,
   useRefreshTokenMutation,
 } from '~/data-provider';
-import { isSafeRedirect, buildLoginRedirectUrl, getPostLoginRedirect } from '~/utils';
 import { TAuthConfig, TUserContext, TAuthContext, TResError } from '~/common';
+import { SESSION_KEY, isSafeRedirect, getPostLoginRedirect } from '~/utils';
 import useTimeout from './useTimeout';
 import store from '~/store';
 
-const AuthContext = createContext<TAuthContext | undefined>(undefined);
+const AuthContext = (import.meta.hot?.data?.__AuthContext ??
+  createContext<TAuthContext | undefined>(undefined)) as React.Context<TAuthContext | undefined>;
+if (import.meta.hot) {
+  import.meta.hot.data.__AuthContext = AuthContext;
+}
 
 const AuthContextProvider = ({
   authConfig,
@@ -34,17 +44,25 @@ const AuthContextProvider = ({
   authConfig?: TAuthConfig;
   children: ReactNode;
 }) => {
+  const isExternalRedirectRef = useRef(false);
   const [user, setUser] = useRecoilState(store.user);
+  const logoutRedirectRef = useRef<string | undefined>(undefined);
   const [token, setToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const logoutRedirectRef = useRef<string | undefined>(undefined);
+  const setQueriesEnabled = useSetRecoilState<boolean>(store.queriesEnabled);
+
+  const userRoleName = user?.role ?? '';
+  const isCustomRole = isAuthenticated && !!user?.role && !isSystemRoleName(user.role);
 
   const { data: userRole = null } = useGetRole(SystemRoles.USER, {
     enabled: !!(isAuthenticated && (user?.role ?? '')),
   });
   const { data: adminRole = null } = useGetRole(SystemRoles.ADMIN, {
     enabled: !!(isAuthenticated && user?.role === SystemRoles.ADMIN),
+  });
+  const { data: customRole = null } = useGetRole(isCustomRole ? userRoleName : '_', {
+    enabled: isCustomRole,
   });
 
   const navigate = useNavigate();
@@ -55,9 +73,11 @@ const AuthContextProvider = ({
         const { token, isAuthenticated, user, redirect } = userContext;
         setUser(user);
         setToken(token);
-        //@ts-ignore - ok for token to be undefined initially
         setTokenHeader(token);
         setIsAuthenticated(isAuthenticated);
+        if (isAuthenticated) {
+          setQueriesEnabled(true);
+        }
 
         const searchParams = new URLSearchParams(window.location.search);
         const postLoginRedirect = getPostLoginRedirect(searchParams);
@@ -76,7 +96,7 @@ const AuthContextProvider = ({
 
         navigate(finalRedirect, { replace: true });
       }, 50),
-    [navigate, setUser],
+    [navigate, setUser, setQueriesEnabled],
   );
   const doSetError = useTimeout({ callback: (error) => setError(error as string | undefined) });
 
@@ -106,11 +126,21 @@ const AuthContextProvider = ({
   });
   const logoutUser = useLogoutUserMutation({
     onSuccess: (data) => {
+      if (data.redirect) {
+        /** data.redirect is the IdP's end_session_endpoint URL — an absolute URL generated
+         * server-side from trusted IdP metadata (not user input), so isSafeRedirect is bypassed.
+         * setUserContext is debounced (50ms) and won't fire before page unload, so clear the
+         * axios Authorization header synchronously to prevent in-flight requests. */
+        isExternalRedirectRef.current = true;
+        setTokenHeader(undefined);
+        window.location.replace(data.redirect);
+        return;
+      }
       setUserContext({
         token: undefined,
         isAuthenticated: false,
         user: undefined,
-        redirect: data.redirect ?? '/login',
+        redirect: '/login',
       });
     },
     onError: (error) => {
@@ -146,11 +176,29 @@ const AuthContextProvider = ({
       console.log('Test mode. Skipping silent refresh.');
       return;
     }
+    if (isExternalRedirectRef.current) {
+      return;
+    }
     refreshToken.mutate(undefined, {
       onSuccess: (data: t.TRefreshTokenResponse | undefined) => {
+        if (isExternalRedirectRef.current) {
+          return;
+        }
         const { user, token = '' } = data ?? {};
         if (token) {
-          setUserContext({ token, isAuthenticated: true, user });
+          const storedRedirect = sessionStorage.getItem(SESSION_KEY);
+          sessionStorage.removeItem(SESSION_KEY);
+          const baseUrl = apiBaseUrl();
+          const rawPath = window.location.pathname;
+          const strippedPath =
+            baseUrl && (rawPath === baseUrl || rawPath.startsWith(baseUrl + '/'))
+              ? rawPath.slice(baseUrl.length) || '/'
+              : rawPath;
+          const currentUrl = `${strippedPath}${window.location.search}`;
+          const fallbackRedirect = isSafeRedirect(currentUrl) ? currentUrl : '/c/new';
+          const redirect =
+            storedRedirect && isSafeRedirect(storedRedirect) ? storedRedirect : fallbackRedirect;
+          setUserContext({ user, token, isAuthenticated: true, redirect });
           return;
         }
         console.log('Token is not present. User is not authenticated.');
@@ -160,6 +208,9 @@ const AuthContextProvider = ({
         navigate(buildLoginRedirectUrl());
       },
       onError: (error) => {
+        if (isExternalRedirectRef.current) {
+          return;
+        }
         console.log('refreshToken mutation error:', error);
         if (authConfig?.test === true) {
           return;
@@ -171,6 +222,9 @@ const AuthContextProvider = ({
   }, []);
 
   useEffect(() => {
+    if (isExternalRedirectRef.current) {
+      return;
+    }
     if (userQuery.data) {
       setUser(userQuery.data);
     } else if (userQuery.isError) {
@@ -224,11 +278,22 @@ const AuthContextProvider = ({
       roles: {
         [SystemRoles.USER]: userRole,
         [SystemRoles.ADMIN]: adminRole,
+        ...(isCustomRole && customRole ? { [userRoleName]: customRole } : {}),
       },
       isAuthenticated,
     }),
 
-    [user, error, isAuthenticated, token, userRole, adminRole],
+    [
+      user,
+      error,
+      isAuthenticated,
+      token,
+      userRole,
+      adminRole,
+      isCustomRole,
+      userRoleName,
+      customRole,
+    ],
   );
 
   return <AuthContext.Provider value={memoedValue}>{children}</AuthContext.Provider>;
