@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>นโยบายความเป็นส่วนตัว — TUGPT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans+Thai:wght@300;400;500;600&display=swapdisplay=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Google Sans', sans-serif;
+      background: #8B0000;
+      background: linear-gradient(145deg, #6b0000 0%, #8B0000 40%, #4a0000 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+    /* header */
+    .top-bar {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255,255,255,0.9);
+      font-family: 'Google Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    .brand img { height: 36px; filter: brightness(0) invert(1); }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      font-family: 'Google Sans', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.25); }
+    /* card */
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: white;
+      border-radius: 20px;
+      padding: 48px 52px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .page-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #8B0000;
+      margin-bottom: 4px;
+    }
+    .page-sub {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .date-pill {
+      display: inline-block;
+      background: #fdf0f0;
+      color: #8B0000;
+      font-size: 0.78rem;
+      font-family: 'Google Sans', sans-serif;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 32px;
+    }
+    hr { border: none; border-top: 1px solid #f0f0f0; margin: 28px 0; }
+    h2 {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 0.92rem;
+      color: #444;
+      line-height: 1.8;
+      margin-bottom: 8px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 8px;
+    }
+    ul li {
+      font-size: 0.92rem;
+      color: #444;
+      line-height: 1.8;
+      padding-left: 16px;
+      position: relative;
+    }
+    ul li::before {
+      content: '·';
+      position: absolute;
+      left: 4px;
+      color: #8B0000;
+      font-weight: 700;
+    }
+    .contact-box {
+      background: #fdf0f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-size: 0.88rem;
+      color: #444;
+      line-height: 1.8;
+    }
+    .contact-box a { color: #8B0000; text-decoration: none; }
+    .contact-box a:hover { text-decoration: underline; }
+    @media (max-width: 600px) {
+      .card { padding: 32px 24px; }
+      .top-bar { margin-bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="brand">
+    <img src="/assets/logo.svg" alt="TU" onerror="this.style.display='none'" />
+    TUGPT
+  </div>
+  <a href="https://tugpt.tu.ac.th" class="btn-back">← กลับหน้าหลัก</a>
+</div>
+
+<div class="card">
+  <div class="page-title">นโยบายความเป็นส่วนตัว</div>
+  <div class="page-sub">TUGPT — แพลตฟอร์มปัญญาประดิษฐ์ มหาวิทยาลัยธรรมศาสตร์</div>
+  <span class="date-pill">มีผลบังคับใช้: 22 ธันวาคม 2568</span>
+
+  <h2>ข้อมูลที่เราเก็บรวบรวม</h2>
+  <p>TUGPT เก็บเฉพาะข้อมูลที่จำเป็นสำหรับการให้บริการ ได้แก่ ข้อมูลบัญชีจากระบบ SSO ของมหาวิทยาลัย ประวัติการสนทนา และข้อมูลการใช้งานในภาพรวม เช่น เวลาเข้าใช้และ endpoint ที่เลือก</p>
+
+  <hr />
+
+  <h2>วัตถุประสงค์การใช้ข้อมูล</h2>
+  <ul>
+    <li>ให้บริการและปรับปรุงคุณภาพการตอบคำถามของระบบ</li>
+    <li>ดูแลความปลอดภัยและป้องกันการใช้งานที่ไม่เหมาะสม</li>
+    <li>วิเคราะห์การใช้งานในภาพรวม (ไม่ระบุตัวตน) เพื่อพัฒนาระบบต่อไป</li>
+  </ul>
+
+  <hr />
+
+  <h2>การเปิดเผยข้อมูลแก่บุคคลที่สาม</h2>
+  <p>มหาวิทยาลัยธรรมศาสตร์ไม่ขายข้อมูลส่วนบุคคลของท่าน ข้อมูลอาจถูกส่งให้ผู้ให้บริการ AI (เช่น OpenAI, Anthropic) เท่าที่จำเป็นสำหรับการประมวลผลคำตอบเท่านั้น</p>
+
+  <hr />
+
+  <h2>สิทธิ์ของท่าน</h2>
+  <p>ท่านสามารถดู แก้ไข หรือขอลบข้อมูลส่วนบุคคลของตนได้ตลอดเวลา รวมถึงลบประวัติการสนทนาผ่านหน้าการตั้งค่าในระบบได้โดยตรง</p>
+
+  <hr />
+
+  <h2>การติดต่อ</h2>
+  <div class="contact-box">
+    <strong>สำนักงานศูนย์เทคโนโลยีสารสนเทศและการสื่อสาร มหาวิทยาลัยธรรมศาสตร์</strong><br />
+    HelpDesk: <a href="https://line.me/R/ti/p/@pib5088f" target="_blank">LINE @pib5088f</a>
+  </div>
+</div>
+
+</body>
+</html>
