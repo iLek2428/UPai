@@ -29,12 +29,20 @@ interface WarpState {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const COLORS_RGBA = [
+const COLORS_RGBA_DARK = [
   'rgba(255, 215, 100, ',
   'rgba(244, 162,  45, ',
   'rgba(232,  90,  10, ',
   'rgba(193,  40,  28, ',
   'rgba(255, 240, 160, ',
+];
+
+const COLORS_RGBA_LIGHT = [
+  'rgba(180, 100,  10, ',
+  'rgba(160,  60,   5, ',
+  'rgba(140,  30,  10, ',
+  'rgba(120,  20,  15, ',
+  'rgba(160,  80,   0, ',
 ];
 
 const STREAK_COUNT = 120;
@@ -60,30 +68,39 @@ function getTheme(): string {
   return document.documentElement.getAttribute('data-theme') ?? 'dark';
 }
 
-function randomColor(): string {
-  return COLORS_RGBA[Math.floor(Math.random() * COLORS_RGBA.length)];
+function randomColor(isLight: boolean): string {
+  const palette = isLight ? COLORS_RGBA_LIGHT : COLORS_RGBA_DARK;
+  return palette[Math.floor(Math.random() * palette.length)];
+}
+
+function applyBodyBg(): void {
+  const isLight = getTheme() === 'light';
+  document.body.style.backgroundColor = isLight ? '#ffffff' : 'rgb(10,6,3)';
+  document.documentElement.style.backgroundColor = isLight ? '#ffffff' : 'rgb(10,6,3)';
 }
 
 // ─── Streak Factory ───────────────────────────────────────────────────────────
 
 function makeStreak(initScatter: boolean): Streak {
+  const isLight = getTheme() === 'light';
   return {
     angle  : Math.random() * Math.PI * 2,
     speed  : 0.2 + Math.pow(Math.random(), 2.8) * 1.8,
     len    : 0.04 + Math.random() * 0.18,
     dist   : initScatter ? Math.random() : Math.random() * 0.06,
-    color  : randomColor(),
+    color  : randomColor(isLight),
     width  : 0.3 + Math.random() * 0.9,
     opacity: 0,
   };
 }
 
 function resetStreak(s: Streak): void {
+  const isLight = getTheme() === 'light';
   s.angle   = Math.random() * Math.PI * 2;
   s.speed   = 0.2 + Math.pow(Math.random(), 2.8) * 1.8;
   s.len     = 0.04 + Math.random() * 0.18;
   s.dist    = Math.random() * 0.06;
-  s.color   = randomColor();
+  s.color   = randomColor(isLight);
   s.width   = 0.3 + Math.random() * 0.9;
   s.opacity = 0;
 }
@@ -101,8 +118,7 @@ function setupCanvas(): void {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: -1;
-    transition: opacity 0.5s;
+    z-index: 0;
   `;
 
   const ctx = canvas.getContext('2d');
@@ -113,9 +129,9 @@ function setupCanvas(): void {
 
   document.body.prepend(canvas);
   resizeCanvas();
-  applyCanvasStyle();
+  applyBodyBg();
 
-  // Fill ทันทีก่อน frame แรก ป้องกัน flash
+  // Fill ทันทีก่อน frame แรก
   const isLight = getTheme() === 'light';
   ctx.fillStyle = isLight ? 'rgb(255,255,255)' : 'rgb(10,6,3)';
   ctx.fillRect(0, 0, state.W, state.H);
@@ -139,11 +155,6 @@ function resizeCanvas(): void {
   state.streaks = Array.from({ length: STREAK_COUNT }, () => makeStreak(true));
 }
 
-function applyCanvasStyle(): void {
-  if (!state.canvas) return;
-  state.canvas.style.opacity = getTheme() === 'light' ? '0.5' : '1';
-}
-
 // ─── Draw Loop ────────────────────────────────────────────────────────────────
 
 function drawFrame(ts: number): void {
@@ -155,21 +166,23 @@ function drawFrame(ts: number): void {
 
   const isLight = getTheme() === 'light';
 
-  // Clear โดยใช้ destination-out ก่อน แล้วค่อย fill สีพื้น
-  // วิธีนี้การันตีว่าไม่มี artifact สีเทาค้าง
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.fillStyle = `rgba(0,0,0,${isLight ? 0.45 : 0.55})`;
-  ctx.fillRect(0, 0, W, H);
-  ctx.globalCompositeOperation = 'source-over';
-
-  // Fill พื้นหลังที่ถูกต้อง
-  ctx.fillStyle = isLight ? 'rgba(255,255,255,0.45)' : 'rgba(10,6,3,0.55)';
-  ctx.fillRect(0, 0, W, H);
+  if (isLight) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgb(255,255,255)';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(10,6,3,0.55)';
+    ctx.fillRect(0, 0, W, H);
+  }
 
   for (const s of streaks) {
     s.dist += s.speed * dt * 0.012;
 
-    // Fade in near center / fade out near edge
     if (s.dist < 0.15)      s.opacity = s.dist / 0.15;
     else if (s.dist > 0.8)  s.opacity = 1 - (s.dist - 0.8) / 0.2;
     else                     s.opacity = 1;
@@ -182,6 +195,8 @@ function drawFrame(ts: number): void {
     const sin = Math.sin(s.angle);
     const x1  = CX + cos * r,  y1 = CY + sin * r;
     const x0  = CX + cos * rT, y0 = CY + sin * rT;
+
+    ctx.globalCompositeOperation = 'source-over';
 
     const grad = ctx.createLinearGradient(x0, y0, x1, y1);
     grad.addColorStop(0,   s.color + '0)');
@@ -196,7 +211,6 @@ function drawFrame(ts: number): void {
     ctx.lineCap     = 'round';
     ctx.stroke();
 
-    // Tip sparkle เฉพาะเส้นเร็ว
     if (s.speed > 1.4 && s.dist > 0.25) {
       ctx.beginPath();
       ctx.arc(x1, y1, s.width * 1.2, 0, Math.PI * 2);
@@ -207,9 +221,15 @@ function drawFrame(ts: number): void {
 
   // Central lens flare
   const flare = ctx.createRadialGradient(CX, CY, 0, CX, CY, 80);
-  flare.addColorStop(0,   'rgba(255,230,140,0.22)');
-  flare.addColorStop(0.3, 'rgba(244,162, 45,0.08)');
-  flare.addColorStop(1,   'rgba(0,0,0,0)');
+  if (isLight) {
+    flare.addColorStop(0,   'rgba(200,120,20,0.15)');
+    flare.addColorStop(0.3, 'rgba(180,80,10,0.05)');
+    flare.addColorStop(1,   'rgba(0,0,0,0)');
+  } else {
+    flare.addColorStop(0,   'rgba(255,230,140,0.22)');
+    flare.addColorStop(0.3, 'rgba(244,162, 45,0.08)');
+    flare.addColorStop(1,   'rgba(0,0,0,0)');
+  }
   ctx.fillStyle = flare;
   ctx.beginPath();
   ctx.arc(CX, CY, 80, 0, Math.PI * 2);
@@ -223,13 +243,15 @@ function drawFrame(ts: number): void {
 function watchTheme(): void {
   state.themeObserver?.disconnect();
   state.themeObserver = new MutationObserver(() => {
-    applyCanvasStyle();
-    // Clear canvas ทันทีเมื่อ switch theme
+    applyBodyBg();
     if (state.ctx) {
       const isLight = getTheme() === 'light';
+      state.ctx.globalCompositeOperation = 'source-over';
+      state.ctx.clearRect(0, 0, state.W, state.H);
       state.ctx.fillStyle = isLight ? 'rgb(255,255,255)' : 'rgb(10,6,3)';
       state.ctx.fillRect(0, 0, state.W, state.H);
     }
+    state.streaks = Array.from({ length: STREAK_COUNT }, () => makeStreak(true));
   });
   state.themeObserver.observe(document.documentElement, {
     attributes     : true,
@@ -283,6 +305,9 @@ export function cleanupWarpEffect(): void {
   state.ctx     = null;
   state.streaks = [];
 
+  // คืนค่า body background เมื่อออกจาก login
+  document.body.style.backgroundColor = '';
+  document.documentElement.style.backgroundColor = '';
   document.body.classList.remove('upai-warp-active');
 }
 
