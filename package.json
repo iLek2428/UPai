@@ -188,5 +188,11 @@
       "admin/",
       "packages/"
     ]
+  },
+  "dependencies": {
+    "@react-spring/web": "^10.1.0",
+    "framer-motion": "^12.40.0",
+    "sharp": "^0.33.5",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }
