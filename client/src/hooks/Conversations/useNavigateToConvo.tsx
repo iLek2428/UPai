@@ -119,6 +119,12 @@ const useNavigateToConvo = (index = 0) => {
     clearAllConversations(true);
     clearMessagesCache(queryClient, currentConvoId);
     if (convo.conversationId !== Constants.NEW_CONVO && convo.conversationId) {
+      /**
+       * Remove (not just invalidate) the target's messages so a freshly-mounted
+       * ChatView refetches them even with `refetchOnMount: false`, including when
+       * navigating in from a non-chat route (e.g. /projects).
+       */
+      queryClient.removeQueries([QueryKeys.messages, convo.conversationId]);
       queryClient.invalidateQueries([QueryKeys.conversation, convo.conversationId]);
       fetchFreshData(convo);
     } else {
