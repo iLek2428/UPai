@@ -1,0 +1,87 @@
+name: Build and Push UPai-TU
+
+# Runs three ways, none of them requiring you to touch a keyboard on build day:
+#  1. schedule            -> rebuilds daily against LibreChat's current main
+#                             branch, so upstream fixes flow in automatically.
+#  2. push to tu-overlay/  -> if you edit a theme file and push, it rebuilds
+#                             right away.
+#  3. workflow_dispatch    -> manual "Run workflow" button, any time.
+#
+# IMPORTANT: this workflow does NOT use a custom Dockerfile. It clones
+# LibreChat fresh (which brings its own tested Dockerfile), overlays the TU
+# theme files on top of that clone, then builds using LibreChat's own
+# Dockerfile exactly as upstream ships it. This avoids ever having a second,
+# hand-maintained Dockerfile drift out of sync with the real one.
+
+on:
+  schedule:
+    - cron: '0 20 * * *'   # 20:00 UTC = 03:00 Asia/Bangkok
+  push:
+    branches: [TU-theme]
+    paths:
+      - 'tu-overlay/**'
+      - '.github/workflows/build-and-push.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout UPai repo (tu-overlay/ + scripts only)
+        uses: actions/checkout@v4
+        with:
+          path: upai-repo
+
+      - name: Clone fresh LibreChat (brings its own real Dockerfile)
+        run: |
+          git clone --depth 1 https://github.com/danny-avila/LibreChat.git build
+
+      - name: Set up Node (for the merge script only)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Merge TU fields into root package.json
+        run: |
+          node upai-repo/tu-overlay/merge-package-json.js \
+            build/package.json \
+            upai-repo/tu-overlay/package.tu-fragment.json
+
+      - name: Merge TU fields into client/package.json
+        run: |
+          node upai-repo/tu-overlay/merge-package-json.js \
+            build/client/package.json \
+            upai-repo/tu-overlay/client/package.tu-fragment.json
+
+      - name: Copy remaining TU theme files on top of fresh clone
+        run: |
+          cd upai-repo/tu-overlay
+          # Copy everything except the fragment files already merged above.
+          find . -type f \
+            ! -name '*.tu-fragment.json' \
+            ! -name 'merge-package-json.js' \
+            -print0 | while IFS= read -r -d '' f; do
+              rel="${f#./}"
+              mkdir -p "../../build/$(dirname "$rel")"
+              cp "$f" "../../build/$rel"
+              echo "  overlaid: $rel"
+            done
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image (using LibreChat's own Dockerfile)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./build
+          push: true
+          tags: |
+            ghcr.io/ilek2428/upai-tu:latest
+            ghcr.io/ilek2428/upai-tu:${{ github.run_number }}
